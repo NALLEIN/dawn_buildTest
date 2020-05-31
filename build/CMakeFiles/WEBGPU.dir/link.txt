@@ -1,1 +1,1 @@
-/usr/bin/c++     CMakeFiles/WEBGPU.dir/test.cpp.o  -o WEBGPU 
+/usr/bin/c++     CMakeFiles/WEBGPU.dir/test.cpp.o  -o WEBGPU   -L/home/webml/GSoC/dawn_buildTest/build  -L/home/webml/GSoC/dawn_buildTest/include/dawn  -L/home/webml/GSoC/dawn_buildTest/dawn  -Wl,-rpath,/home/webml/GSoC/dawn_buildTest/build:/home/webml/GSoC/dawn_buildTest/include/dawn:/home/webml/GSoC/dawn_buildTest/dawn 

@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/WEBGPU.dir/test.cpp.o"
-  "WEBGPU.pdb"
   "WEBGPU"
+  "WEBGPU.pdb"
 )
 
 # Per-language clean rules from dependency scanning.
