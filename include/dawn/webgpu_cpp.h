@@ -3,7 +3,7 @@
 #define WEBGPU_CPP_H_
 
 #include "webgpu.h"
-#include "../include/dawn/EnumClassBitmasks.h"
+#include "EnumClassBitmasks.h"
 
 namespace wgpu {
 
