@@ -11,21 +11,19 @@ if(HAVE_WEBGPU OR WITH_WEBGPU)
 endif()
 
 add_executable(WEBGPU test.cpp)
-
-# include_directories(${WEBGPU_INCLUDE_DIRS}/dawn)
+set_property(TARGET WEBGPU PROPERTY CXX_STANDARD 11)
+include_directories(${WEBGPU_INCLUDE_DIRS})
 # link_directories(WEBGPU  ${WEBGPU_INCLUDE_DIRS}/dawn
 #                                ${WEBGPU_INCLUDE_DIRS}/dawn)
-target_link_directories(WEBGPU PUBLIC "${WEBGPU_INCLUDE_DIRS}/dawn/dawn_proc.h"
-                            PUBLIC "${WEBGPU_INCLUDE_DIRS}/dawn/webgpu_cpp.h")
-target_link_libraries(WEBGPU  "${WEBGPU_LIBRARIES}/libdawn_proc.so"
-                                    "${WEBGPU_LIBRARIES}/libdawn_native.so")
+target_include_directories(WEBGPU PUBLIC ${WEBGPU_INCLUDE_DIRS})
+target_link_directories(WEBGPU PUBLIC ${WEBGPU_LIBRARIES})
+target_link_libraries(WEBGPU dawn_proc dawn_native)
 
 try_compile(VALID_DAWN
       ${WEBGPU_LIBRARIES}
       ${PROJECT_SOURCE_DIR}/test.cpp
       )
 if(NOT ${VALID_DAWN})
-message(WARNING "${WEBGPU_INCLUDE_DIRS}")
   message(WARNING "Can't use Dawn")
   return()
 endif()
