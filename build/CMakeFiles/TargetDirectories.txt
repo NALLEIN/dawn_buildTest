@@ -1,3 +1,0 @@
-/home/webml/GSoC/dawn_buildTest/build/CMakeFiles/rebuild_cache.dir
-/home/webml/GSoC/dawn_buildTest/build/CMakeFiles/WEBGPU.dir
-/home/webml/GSoC/dawn_buildTest/build/CMakeFiles/edit_cache.dir
