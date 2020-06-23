@@ -179,65 +179,56 @@ wgpu::Device createCppDawnDevice() {
 }
 
 wgpu::Device device = createCppDawnDevice();
+wgpu::Queue queue = device.GetDefaultQueue();
+
 wgpu::CreateBufferMappedResult createBufferMappedFromData( wgpu::Device& device,
                                                         const void* data,
                                                         size_t size,
                                                         wgpu::BufferUsage usage){
     wgpu::BufferDescriptor descriptor = {};
     descriptor.size = size;
-    descriptor.usage = usage ;
+    descriptor.usage = usage | wgpu::BufferUsage::CopyDst;
     wgpu::CreateBufferMappedResult result = device.CreateBufferMapped(&descriptor);
     memcpy(result.data, data, size);
     return result;
 }
 
-void WaitABit() {
-    device.Tick();
-    usleep(100);
+void readBufferMapReadCallback(WGPUBufferMapAsyncStatus status,
+	const void* ptr,
+	uint64_t dataLength,
+	void* userdata) {
+	(void)status;
+	(void)userdata;
+	printf("resultMatrix: [");
+	size_t num = dataLength / sizeof(float);
+	for (size_t i = 0; i < num; ++i) {
+		printf("%f", ((const float*)ptr)[i]);
+		if (i != num - 1)
+			printf(", ");
+	}
+	printf("]\n");
 }
-class BufferReadAsync{
-public:
-static void BufferMapReadCallback(WGPUBufferMapAsyncStatus status,
-                                   const void* data,
-                                   uint64_t,
-                                   void* userdata)
-{
-    static_cast<BufferReadAsync*>(userdata)->mappedData = data;
-}
-
-const void* MapReadAsyncAndWait(const wgpu::Buffer& buffer) {
-    buffer.MapReadAsync(BufferMapReadCallback, this);
-    while(mappedData == nullptr) {
-        WaitABit();
-    }
-    return mappedData;
-}
-
-void UnmapBuffer(const wgpu::Buffer& buffer) {
-    buffer.Unmap();
-    mappedData = nullptr;
-}
-
-private:
-const void * mappedData = nullptr;
-};
 
 int main(int /*argc*/, char** /*argv*/) 
 {
     // create buffer
     std::array<wgpu::Buffer, 2> inputsBuffer;
-    wgpu::Buffer resultBuffer;
+    wgpu::Buffer resultBuffer,gpuReadBuffer;
     float const inputData1[] = {2.0f, 4.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float const inputData2[] = {4.0f, 2.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float const outputData[] = {2.0f, 2.0f, 50.0f, 60.0f, 114.0f, 140.0f};
     wgpu::BufferDescriptor desc2;
     desc2.size = sizeof(outputData);
-    desc2.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst;
+    desc2.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc;
     resultBuffer = device.CreateBuffer(& desc2);
+    wgpu::BufferDescriptor desc3;
+    desc3.size = sizeof(outputData);
+    desc3.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
+    gpuReadBuffer = device.CreateBuffer(& desc3);
     inputsBuffer[0] = createBufferMappedFromData(device, inputData1, sizeof(inputData1),
-        wgpu::BufferUsage::Storage).buffer ;
+        wgpu::BufferUsage::Storage ).buffer ;
     inputsBuffer[1] = createBufferMappedFromData(device, inputData2, sizeof(inputData2),
-        wgpu::BufferUsage::Storage).buffer ;
+        wgpu::BufferUsage::Storage ).buffer ;
     inputsBuffer[0].Unmap();
     inputsBuffer[1].Unmap();
     std::cout << "buffer create succeed" <<std::endl;
@@ -264,12 +255,13 @@ int main(int /*argc*/, char** /*argv*/)
     std::cout<<"create BindGroup succeed"<<std::endl;
 
     // create shader module
-    uint32_t shaderSize =sizeof(shaderBuffer);
+    uint32_t shaderSize =sizeof(shaderBuffer) / sizeof(uint32_t);
     wgpu::ShaderModuleSPIRVDescriptor spirvDesc;
     spirvDesc.sType = wgpu::SType::ShaderModuleSPIRVDescriptor;
     spirvDesc.codeSize = shaderSize;
     spirvDesc.code = shaderBuffer;
     wgpu::ShaderModuleDescriptor descriptor;
+    descriptor.label = nullptr;
     descriptor.nextInChain = &spirvDesc;
     wgpu::ShaderModule module = device.CreateShaderModule(&descriptor);
     std::cout<< "Shader module create succeed"<<std::endl;
@@ -293,37 +285,21 @@ int main(int /*argc*/, char** /*argv*/)
     pass.SetBindGroup(0,bg);
     pass.Dispatch(2,4);
     pass.EndPass();
+    encoder.CopyBufferToBuffer(resultBuffer, 0, gpuReadBuffer, 0, sizeof(outputData));
     wgpu::CommandBuffer cmdBuffer = encoder.Finish();
     std::cout<<"CommandBuffer create succeed"<<std::endl;
 
     // create fence and submit cmdBuffer
-    wgpu::Queue queue = device.GetDefaultQueue();
-    wgpu::Fence fence = queue.CreateFence();
-    uint64_t singalValue = 1u;
-    uint64_t completedValue = 1u;
-
-    queue.Signal(fence, singalValue);
     queue.Submit(1, &cmdBuffer);
-    while (fence.GetCompletedValue() < completedValue) 
-    {
-        device.Tick();
-        usleep(1000);
-        std::cout<<"Waif for fence"<<std::endl;
-    }
-    if(fence.GetCompletedValue() != completedValue)
-    {
-        std::cout<<"Wait for fence failed"<<std::endl;
-    }
-    // BufferReadAsync tmp;
-    // const void* mappedData = tmp.MapReadAsyncAndWait(resultBuffer);
-    // void* resultData;
-    // memcpy(resultData, mappedData, sizeof(mappedData));
-    // float* resultArray = (float*) resultData;
-
-    // release source
-    fence.Release();
+    device.Tick();
+    usleep(100);
+    std::cout<<"cmd_buffer submitted"<<std::endl;
+    resultBuffer.MapReadAsync(readBufferMapReadCallback, nullptr);
+    bg.Release();
+    inputsBuffer[0].Release();
+    inputsBuffer[1].Release();
+    pl.Release();
     queue.Release();
     device.Release();
-    std::cout<<"test1 succeed"<<std::endl;
-    return 0;
+    std::cout<<"test1 finish"<<std::endl;
 }
